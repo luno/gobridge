@@ -9,26 +9,58 @@ import (
 	"strings"
 )
 
-func ParseFile(path string, mName string) (map[string]map[string]string, map[string][]FunctionSignature, error) {
-	b, err := ioutil.ReadFile(path)
+type Data struct {
+	GoTypeRep        []GoTypeRepresentation
+	APIFuncs         map[string][]FunctionSignature
+	ApiPkgName       string
+	ImportDictionary map[string]string              // Package name to import path from go mod
+	ValueDecl        map[string][]map[string]string // Constants and var declarations found
+}
+
+func ParseFile(path string, mName string) (*Data, error) {
+	p1 := strings.Split(path, ".go")
+	p2 := strings.Split(p1[0], "/")
+
+	dir := strings.TrimSuffix(path, "/"+strings.Join(p2[len(p2)-1:], "")+".go")
+	dirInfo, err := ioutil.ReadDir(dir)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
+	}
+
+	var filesToRead []string
+	for _, v := range dirInfo {
+		if v.IsDir() {
+			continue
+		}
+
+		filesToRead = append(filesToRead, dir+"/"+v.Name())
 	}
 
 	fset := token.NewFileSet()
-	data := make(map[string]map[string]string)
-	fs := make(map[string][]FunctionSignature)
-
-	err = readFile(fset, mName, string(b), data, fs)
-	if err != nil {
-		return nil, nil, err
+	d := &Data{
+		APIFuncs:         make(map[string][]FunctionSignature),
+		ImportDictionary: make(map[string]string),
+		ValueDecl:        make(map[string][]map[string]string),
 	}
 
-	return data, fs, nil
+	for _, filePath := range filesToRead {
+		fmt.Println(filePath)
+		err = readFile(fset, mName, filePath, d, true)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return d, nil
 }
 
-func readFile(fset *token.FileSet, mName string, fContents string, data map[string]map[string]string, fs map[string][]FunctionSignature) error {
-	node, err := parser.ParseFile(fset, "", fContents, parser.ParseComments)
+func readFile(fset *token.FileSet, mName string, filePath string, d *Data, recursive bool) error {
+	b, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return err
+	}
+
+	node, err := parser.ParseFile(fset, "", string(b), parser.ParseComments)
 	if err != nil {
 		return err
 	}
@@ -37,42 +69,73 @@ func readFile(fset *token.FileSet, mName string, fContents string, data map[stri
 		fset: fset,
 	}
 
-	sp := make(map[string]string)
+	var sp []TypeSignature
 	// Traverse file tree for interface methods
 	ast.Inspect(node, func(n ast.Node) bool {
 		switch t := n.(type) {
+		case *ast.File:
+			r.CurrGoPkg = t.Name.Name
+			d.ImportDictionary[r.CurrGoPkg] = mName + getDirFromPath(filePath)
 		case *ast.TypeSpec:
 			if t.Name.IsExported() {
 				switch assertion := t.Type.(type) {
 				case *ast.StructType:
 					sp = r.ListStructProperties(assertion)
-					data[t.Name.Name] = sp
+					d.GoTypeRep = append(d.GoTypeRep, GoTypeRepresentation{
+						Name:   t.Name.Name,
+						Pkg:    r.CurrGoPkg,
+						Type:   GenericTypeStruct,
+						Fields: sp,
+					})
 				case *ast.InterfaceType:
-					apiFs := r.ListInterfaceMethods(assertion)
-					fs[t.Name.Name] = apiFs
+					if recursive == true {
+						apiFs := r.ListInterfaceMethods(assertion)
+						d.APIFuncs[t.Name.Name] = apiFs
+						d.ApiPkgName = r.CurrGoPkg
+					}
+				case *ast.Ident:
+					// Possible enum of a primitive type
+					d.GoTypeRep = append(d.GoTypeRep, GoTypeRepresentation{
+						Name: t.Name.Name,
+						Pkg:  r.CurrGoPkg,
+						Type: GenericTypeEnum,
+						Kind: assertion.Name,
+					})
 				}
+			}
+		case *ast.ValueSpec:
+			_, ok := t.Values[0].(*ast.BasicLit)
+			if ok {
+				m := make(map[string]string)
+				m[t.Names[0].Name] = t.Values[0].(*ast.BasicLit).Value
+				d.ValueDecl[t.Type.(*ast.Ident).Name] = append(d.ValueDecl[t.Type.(*ast.Ident).Name], m)
 			}
 		case *ast.ImportSpec:
 			if !strings.Contains(t.Path.Value, mName) {
 				return false
 			}
 
+			if !recursive {
+				return false
+			}
+
 			path := strings.ReplaceAll(t.Path.Value, `"`, "")
 			pathList := strings.Split(path, "/")
 			path = strings.Join(pathList[1:], "/")
+			dirLvlCorrection := strings.Split(filePath, strings.Split(path, "/")[0])[0]
 
-			fi, err := ioutil.ReadDir("./" + path)
+			fi, err := ioutil.ReadDir(dirLvlCorrection + path)
 			if err != nil {
 				panic(err)
 			}
 
 			for _, f := range fi {
-				b, err := ioutil.ReadFile("./" + path + "/" + f.Name())
-				if err != nil {
-					panic(err)
+				if f.IsDir() {
+					continue
 				}
 
-				err = readFile(fset, mName, string(b), data, fs)
+				nextPath := dirLvlCorrection + path + "/" + f.Name()
+				err = readFile(fset, mName, nextPath, d, false)
 				if err != nil {
 					panic(err)
 				}
@@ -84,41 +147,97 @@ func readFile(fset *token.FileSet, mName string, fContents string, data map[stri
 	return nil
 }
 
+func getDirFromPath(path string) string {
+	var dir string
+	for _, item := range strings.Split(path, "/") {
+		if item == "." {
+			continue
+		}
+
+		if item == ".." {
+			continue
+		}
+
+		if strings.HasSuffix(item, ".go") {
+			continue
+		}
+
+		dir += "/" + item
+	}
+	return dir
+}
+
 type Reader struct {
-	fset *token.FileSet
+	fset      *token.FileSet
+	CurrGoPkg string
 }
 
 // ListInterfaceMethods returns the function signatures of all the interface methods
-func (r *Reader) ListStructProperties(it *ast.StructType) map[string]string {
-	sf := make(map[string]string)
+func (r *Reader) ListStructProperties(it *ast.StructType) []TypeSignature {
+	var sf []TypeSignature
 	for _, field := range it.Fields.List {
 		// Name
-		name := field.Names[0].Name
-		// Type
+		ts := TypeSignature{}
+		ts.Name = field.Names[0].Name
+		// Kind
 		switch t := field.Type.(type) {
 		case *ast.Ident:
-			sf[name] = t.Name
+			ts.Kind = t.Name
 		case *ast.SelectorExpr:
 			p2 := t.Sel
-			sf[name] = p2.Name
+			ts.Kind = p2.Name
 		case *ast.ArrayType:
-			sf[name] = "[]" + r.importTypeFromASTExpr(t.Elt)
+			ts.Kind = "[]" + r.importTypeFromASTExpr(t.Elt)
 		case *ast.MapType:
 			p1 := r.importTypeFromASTExpr(t.Key)
 			p2 := r.importTypeFromASTExpr(t.Value)
-			sf[name] = fmt.Sprintf("map[%s]%s", p1, p2)
+			ts.Kind = fmt.Sprintf("map[%s]%s", p1, p2)
 		default:
 			fmt.Println("Unable to determine type:")
 			ast.Print(r.fset, t)
 		}
+
+		sf = append(sf, ts)
 	}
 	return sf
 }
 
+type GenericType int
+
+const (
+	GenericTypeUnknown GenericType = 0
+	GenericTypeStruct  GenericType = 1
+	GenericTypeEnum    GenericType = 2
+)
+
+type GoTypeRepresentation struct {
+	Name       string
+	Pkg        string
+	ImportPath string
+	Fields     []TypeSignature // This will only have a value if the GenericType is set to Struct
+	Type       GenericType
+	Kind       string // This will only have a value if the GenericType is set to Enum
+}
+
+type TypeSignature struct {
+	Name      string
+	Kind      string
+	Type      SignatureType
+	GoPackage string
+}
+
+type SignatureType int
+
+const (
+	SignatureTypeUnknown SignatureType = 0
+	SignatureTypeSingle  SignatureType = 1
+	SignatureTypeSlice   SignatureType = 2
+)
+
 type FunctionSignature struct {
 	Name    string
-	Params  map[string]string
-	Results map[string]string
+	Params  []TypeSignature
+	Results []TypeSignature
 }
 
 // ListInterfaceMethods returns the function signatures of all the interface methods
@@ -142,17 +261,29 @@ func (r *Reader) ListInterfaceMethods(it *ast.InterfaceType) []FunctionSignature
 
 func (r *Reader) CheckFunctionSignature(fn *ast.FuncType) FunctionSignature {
 	var fs FunctionSignature
-	fs.Results = make(map[string]string)
-	fs.Params = make(map[string]string)
 
 	for _, param := range fn.Params.List {
-		n, v := r.parseVariables(param)
-		if strings.ToLower(v) == "context" ||
-			strings.ToLower(v) == "error" {
+		n, t := r.parseVariables(param)
+		if strings.ToLower(t) == "context" ||
+			strings.ToLower(t) == "error" {
 			continue
 		}
 
-		fs.Params[n] = v
+		if strings.HasPrefix(n, "[]") {
+			n = "list"
+		}
+
+		typ := SignatureTypeSingle
+		if strings.HasPrefix(t, "[]") {
+			typ = SignatureTypeSlice
+			t = strings.ReplaceAll(t, "[]", "")
+		}
+
+		fs.Params = append(fs.Params, TypeSignature{
+			Name: n,
+			Kind: t,
+			Type: typ,
+		})
 	}
 
 	for _, result := range fn.Results.List {
@@ -162,7 +293,21 @@ func (r *Reader) CheckFunctionSignature(fn *ast.FuncType) FunctionSignature {
 			continue
 		}
 
-		fs.Results[n] = v
+		if strings.HasPrefix(n, "[]") {
+			n = "list"
+		}
+
+		typ := SignatureTypeSingle
+		if strings.HasPrefix(v, "[]") {
+			typ = SignatureTypeSlice
+			v = strings.ReplaceAll(v, "[]", "")
+		}
+
+		fs.Results = append(fs.Results, TypeSignature{
+			Name: n,
+			Kind: v,
+			Type: typ,
+		})
 	}
 
 	return fs
@@ -198,4 +343,3 @@ func (r *Reader) importTypeFromASTExpr(expr ast.Expr) string {
 func importTypeFromASTIdent(ident *ast.Ident) string {
 	return ident.Name
 }
-

@@ -1,50 +1,99 @@
 package templates
 
 import (
+	"gobridge/reader"
 	"os"
+	"strings"
 	"text/template"
 )
 
 type TSService struct {
-	Name string
-	Types   []TSType
+	Name        string
+	Interfaces []TSInterface
+	Enums       []TSEnum
+	ModName     string
 	MethodNames []string
 }
 
-type TSType struct {
+type TSInterface struct {
+	Name   string
+	Fields []reader.TypeSignature
+}
+
+type TSEnum struct {
 	Name   string
 	Fields map[string]string
 }
 
 func (tss *TSService) AddTo(file *os.File) error {
-	return template.Must(template.New("").Parse(tsServiceTemplate)).Execute(file, tss)
+	funcMap := template.FuncMap{
+		"ToLower": strings.ToLower,
+		"ToCamelCase": func(s string) string{
+			ls := strings.Split(s, "")
+			ls[0] = strings.ToUpper(ls[0])
+			return strings.Join(ls, "")
+		},
+	}
+
+	return template.Must(template.New("").Funcs(funcMap).Parse(tsServiceTemplate)).Execute(file, tss)
 }
 
-var tsServiceTemplate = `
-import { Injectable } from '@angular/core';
+var tsServiceTemplate = `import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Router } from '@angular/router';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
-export class {{.Name}}Service {
-	const url = 'http://localhost:8080'
+export class {{.Name}} {
 
-	constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) {}
+  {{- range $key, $value := .MethodNames }}
 
-{{- range $key, $value := .MethodNames }}
-	public async {{$value}}(payload: Request{{$value}}): Promise<Response{{$value}}> {
-		return await this.http.post(this.url + '/{{$value}}', JSON.stringify(payload)).toPromise() as Response{{$value}};
-	}
+  // @ts-ignore
+  public async {{$value}}(payload: {{$value}}Request): Promise<Response{{$value}}> {
+    // tslint:disable-next-line:max-line-length
+    return await this.http.post(environment.BackendURL + '/{{$.Name | ToLower}}/{{$value | ToLower}}', JSON.stringify(payload)).toPromise() as {{$value}}Response;
+  }
+
 {{- end }}
 }
-{{ range $key, $value := .Types }}
+{{- range $key, $value := .Interfaces }}
+{{- if eq (len $value.Fields) 0 }}
+
+// tslint:disable-next-line:no-empty-interface
+export interface {{$value.Name}} {}
+{{- end}}
+{{- if ge (len $value.Fields) 1 }}
+
 export interface {{$value.Name}} {
 {{- range $key2, $value2 := $value.Fields }}
-	{{ $key2 }}: {{ $value2 }};
+{{- if eq $value2.Type 1}}
+  {{ $value2.Name | ToCamelCase}}: {{ $value2.Kind }};
+{{- end}}
+{{- if eq $value2.Type 0}}
+  {{ $value2.Name | ToCamelCase}}: {{ $value2.Kind }};
+{{- end}}
+{{- if eq $value2.Type 2}}
+  {{ $value2.Name | ToCamelCase}}: {{ $value2.Kind }}[];
+{{- end}}
 {{- end }}
 }
-{{ end }}
+{{- end}}
+{{- end }}
 
+{{- range $key, $value := .Enums }}
+{{- if eq (len $value.Fields) 0 }}
+
+export enum {{$value.Name}} {}
+{{- end}}
+{{- if ge (len $value.Fields) 1 }}
+
+export enum {{$value.Name}} {
+{{- range $key2, $value2 := $value.Fields }}
+  {{ $key2 }} = {{ $value2 }},
+{{- end }}
+}
+{{- end}}
+{{- end }}
 `

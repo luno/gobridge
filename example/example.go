@@ -1,7 +1,9 @@
 package example
 
-import "context"
+import (
+	"context"
+)
 
 type Example interface {
-	Name(ctx context.Context) (string, error)
+	HasPermission(ctx context.Context, r []Role) (bool, error)
 }

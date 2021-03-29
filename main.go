@@ -4,29 +4,39 @@ import (
 	"flag"
 	"gobridge/generator"
 	"gobridge/reader"
+	"math/rand"
 )
 
-var inputFile = flag.String("go_target", "", "Target file to read")
-var moduleName = flag.String("go_mod", "", "Name of the go module being used for the project")
-var tsOutFile = flag.String("ts_output", "", "Target location to generate file to read")
+var inputFile = flag.String("api", "", "Target file to read")
+var moduleName = flag.String("mod", "", "Name of the go module being used for the project")
+var tsOutFile = flag.String("ts", "", "Target location to generate file to read")
+var tsServiceName = flag.String("ts_service", "", "Target location to generate file to read")
+var goServerFile = flag.String("server", "", "")
 
 func main() {
 	flag.Parse()
+	rand.Seed(123456789)
 
 	if *inputFile == "" || *moduleName == "" {
 		return
 	}
 
-	data, fs, err := reader.ParseFile(*inputFile, *moduleName)
+	d, err := reader.ParseFile(*inputFile, *moduleName)
 	if err != nil {
 		panic(err)
 	}
 
 	if *tsOutFile != "" {
-		err := generator.TSClient(*tsOutFile, data, fs)
+		err := generator.TSClient(*tsOutFile, *tsServiceName, d)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	if *goServerFile != "" {
+		err = generator.Server(*goServerFile, *moduleName, d)
 		if err != nil {
 			panic(err)
 		}
 	}
 }
-

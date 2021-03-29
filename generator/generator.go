@@ -1,14 +1,16 @@
 package generator
 
 import (
+	"math/rand"
+	"os"
+	"strings"
+
 	"gobridge/ioeasy"
 	"gobridge/reader"
 	"gobridge/templates"
-	"os"
-	"strings"
 )
 
-func TSClient(tsPath string, rawTypes map[string]map[string]string, fs map[string][]reader.FunctionSignature) error {
+func TSClient(tsPath, serviceName string, d *reader.Data) error {
 	err := ioeasy.CreateFileFromPath(tsPath)
 	if err != nil {
 		return err
@@ -26,43 +28,68 @@ func TSClient(tsPath string, rawTypes map[string]map[string]string, fs map[strin
 		return err
 	}
 
-	tsdata := make(map[string]map[string]string)
-	for name, fields := range rawTypes {
-		tsdata[name] = fields
-		f := tsdata[name]
-		for key, value := range f {
-			f[key] = switchToTypescriptType(value)
+	rawTypes := d.GoTypeRep
+	fs := d.APIFuncs
+
+	var tsdata []reader.GoTypeRepresentation
+	for _, v := range rawTypes {
+		if v.Type == reader.GenericTypeStruct {
+			v.Fields = parseTSTypes(v.Fields)
+			tsdata = append(tsdata, v)
+		}
+
+		if v.Type == reader.GenericTypeEnum {
+			v.Kind = switchToTypescriptType(v.Kind)
+			tsdata = append(tsdata, v)
 		}
 	}
 
 	tsi := new(templates.TSService)
-	for serviceName, methods := range fs {
+	for _, methods := range fs {
 		tsi.Name = serviceName
 		for _, m := range methods {
 			tsi.MethodNames = append(tsi.MethodNames, m.Name)
 
-			req := templates.TSType{
-				Name:   "Request" + m.Name,
-				Fields: m.Params,
+			req := templates.TSInterface{
+				Name:   m.Name + "Request",
+				Fields: parseTSTypes(m.Params),
 			}
-			tsi.Types = append(tsi.Types, req)
+			tsi.Interfaces = append(tsi.Interfaces, req)
 
-			resp := templates.TSType{
-				Name:   "Response" + m.Name,
-				Fields: m.Results,
+			resp := templates.TSInterface{
+				Name:   m.Name + "Response",
+				Fields: parseTSTypes(m.Results),
 			}
 
-			tsi.Types = append(tsi.Types, resp)
+			tsi.Interfaces = append(tsi.Interfaces, resp)
 		}
 	}
 
-	for name, fields := range tsdata {
-		tst := templates.TSType{
-			Name:   name,
-			Fields: fields,
-		}
+	for _, v := range tsdata {
+		switch v.Type {
+		case reader.GenericTypeStruct:
+			tst := templates.TSInterface{
+				Name:   v.Name,
+				Fields: v.Fields,
+			}
 
-		tsi.Types = append(tsi.Types, tst)
+			tsi.Interfaces = append(tsi.Interfaces, tst)
+
+		case reader.GenericTypeEnum:
+			tst := templates.TSEnum{
+				Name:   v.Name,
+				Fields: make(map[string]string),
+			}
+
+			l := d.ValueDecl[v.Name]
+			for _, decl := range l {
+				for key, value := range decl {
+					tst.Fields[key] = value
+				}
+			}
+
+			tsi.Enums = append(tsi.Enums, tst)
+		}
 	}
 
 	err = tsi.AddTo(file)
@@ -73,15 +100,150 @@ func TSClient(tsPath string, rawTypes map[string]map[string]string, fs map[strin
 	return nil
 }
 
+func parseTSTypes(m []reader.TypeSignature) []reader.TypeSignature {
+	temp := make([]reader.TypeSignature, len(m))
+	for i, v := range m {
+		v.Kind = switchToTypescriptType(v.Kind)
+		temp[i] = v
+	}
+
+	return temp
+}
+
 func GoClient(data map[string]map[string]string) (fContents string, err error) {
 	return
 }
 
-func Server() (fContents string, err error) {
-	return
+func Server(serverPath, modName string, d *reader.Data) error {
+	err := ioeasy.CreateFileFromPath(serverPath)
+	if err != nil {
+		return err
+	}
+
+	// Reset file
+	err = os.Truncate(serverPath, 0)
+	if err != nil {
+		return err
+	}
+
+	// Apply correct permissions
+	file, err := os.OpenFile(serverPath, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+	if err != nil {
+		return err
+	}
+
+	structs := d.GoTypeRep
+	apiPkgName := d.ApiPkgName
+
+	mrs := make(map[string]reader.GoTypeRepresentation)
+	for _, v := range structs {
+		mrs[v.Name] = v
+	}
+
+	apiImport := d.ImportDictionary[apiPkgName]
+	var additionalImports []string
+
+	fs := d.APIFuncs
+	pkgToImport := d.ImportDictionary
+
+	for api, funcs := range fs {
+		var (
+			hs []templates.HTTPHandler
+			ps []templates.Path
+		)
+		for _, fn := range funcs {
+			p := templates.Path{
+				Camelcase: fn.Name,
+				Lowercase: apiPkgName + "/" + strings.ToLower(fn.Name),
+			}
+
+			var (
+				params         []string
+				results        []string
+				responseParams []string
+				ts             templates.SerialisationTypes
+			)
+
+			ts.Request = fn.Params
+			for i, val := range fn.Params {
+				if val.Name == "" && isBuiltInType(val.Kind) {
+					params = append(params, RandVarName())
+				} else {
+					cleaned := strings.ReplaceAll(val.Kind, "[]", "")
+					t, ok := mrs[cleaned]
+					if ok {
+						fn.Params[i].GoPackage = t.Pkg
+						if imp, exists := pkgToImport[t.Pkg]; exists {
+							if imp != apiImport {
+								additionalImports = append(additionalImports, imp)
+							}
+						}
+					}
+					params = append(params, val.Name)
+				}
+			}
+
+			ts.Response = fn.Results
+			for i, val := range fn.Results {
+				if isBuiltInType(val.Kind) {
+					results = append(results, RandVarName())
+				} else {
+					cleaned := strings.ReplaceAll(val.Kind, "[]", "")
+					t, ok := mrs[cleaned]
+					if ok {
+						fn.Results[i].GoPackage = t.Pkg
+						if imp, exists := pkgToImport[t.Pkg]; exists {
+							if imp != apiImport {
+								additionalImports = append(additionalImports, imp)
+							}
+						}
+					}
+					results = append(results, val.Name)
+				}
+				responseParams = append(responseParams, val.Name)
+			}
+			responseParams = append(responseParams, "_")
+
+			results = append(results, "err")
+
+			h := templates.HTTPHandler{
+				Method:         fn.Name,
+				API:            apiPkgName + "." + api,
+				URL:            apiPkgName + "/" + strings.ToLower(fn.Name),
+				RequestType:    fn.Name,
+				Params:         params,
+				Results:        results,
+				ResponseType:   fn.Name,
+				ResponseParams: responseParams,
+				Types:          ts,
+			}
+
+			ps = append(ps, p)
+			hs = append(hs, h)
+		}
+
+		server := &templates.HTTPServer{
+			API:      apiPkgName + "." + api,
+			Imports:  append(additionalImports, apiImport),
+			Paths:    ps,
+			Handlers: hs,
+		}
+
+		return server.AddTo(file)
+	}
+
+	return nil
 }
 
 func isBuiltInType(typ string) bool {
+	if strings.HasPrefix(typ, "[]") {
+		return true
+	}
+
+	if strings.HasPrefix(typ, "map") {
+		return true
+	}
+
 	switch typ {
 	case "bool", "byte", "complex128", "complex64", "error":
 	case "float32", "float64":
@@ -125,4 +287,14 @@ func switchToTypescriptType(typ string) string {
 		}
 		return typ
 	}
+}
+
+func RandVarName() string {
+	var availableChars = []rune("abcdefghijklmnopqrstuvwxyz")
+
+	b := make([]rune, 4)
+	for i := range b {
+		b[i] = availableChars[rand.Intn(len(availableChars))]
+	}
+	return string(b)
 }
