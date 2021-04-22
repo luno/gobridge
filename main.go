@@ -2,9 +2,10 @@ package main
 
 import (
 	"flag"
+	"math/rand"
+
 	"gobridge/generator"
 	"gobridge/reader"
-	"math/rand"
 )
 
 var inputFile = flag.String("api", "", "Target file to read")

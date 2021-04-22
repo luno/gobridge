@@ -51,7 +51,7 @@ export class {{.Name}} {
   {{- range $key, $value := .MethodNames }}
 
   // @ts-ignore
-  public async {{$value}}(payload: {{$value}}Request): Promise<Response{{$value}}> {
+  public async {{$value}}(payload: {{$value}}Request): Promise<{{$value}}Response> {
     // tslint:disable-next-line:max-line-length
     return await this.http.post(environment.BackendURL + '/{{$.Name | ToLower}}/{{$value | ToLower}}', JSON.stringify(payload)).toPromise() as {{$value}}Response;
   }
