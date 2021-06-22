@@ -7,11 +7,11 @@ import (
 	"strings"
 
 	"time"
-	"gobridge/example/second"
-	"gobridge/example"
+	"gobridge/example/backend/second"
+	"gobridge/example/backend"
 )
 
-func New(api example.Example, a AuthConfig) *Server {
+func New(api backend.Example, a AuthConfig) *Server {
 	s := &Server{
 		Auth: a,
 		API: api,
@@ -26,7 +26,7 @@ type AuthConfig map[Endpoint]func(token string) (bool, error)
 
 type Server struct {
 	Auth AuthConfig
-	API example.Example
+	API backend.Example
 }
 
 type Endpoint int
@@ -42,17 +42,17 @@ func (ep Endpoint) Path() string {
 	case AllEndpoints:
 		return "**"
 	case HasPermissionEndpoint:
-		return "/example/haspermission"
+		return "/backend/haspermission"
 	case WhatsTheTimeEndpoint:
-		return "/example/whatsthetime"
+		return "/backend/whatsthetime"
 	default:
 		return ""
 	}
 }
 
 func (s *Server) registerHandlers() {
-	http.HandleFunc("/example/haspermission", s.Wrap(HasPermissionEndpoint, HandleHasPermission(s.API)))
-	http.HandleFunc("/example/whatsthetime", s.Wrap(WhatsTheTimeEndpoint, HandleWhatsTheTime(s.API)))
+	http.HandleFunc("/backend/haspermission", s.Wrap(HasPermissionEndpoint, HandleHasPermission(s.API)))
+	http.HandleFunc("/backend/whatsthetime", s.Wrap(WhatsTheTimeEndpoint, HandleWhatsTheTime(s.API)))
 }
 
 func (s *Server) Wrap(e Endpoint, fn func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
@@ -111,15 +111,15 @@ func checkAuth(w http.ResponseWriter, r *http.Request, authFunc func(token strin
 }
 
 type HasPermissionRequest struct {
-	R []example.Role
-	U example.User
+	R []backend.Role
+	U backend.User
 }
 
 type HasPermissionResponse struct {
 	Bool bool
 }
 
-func HandleHasPermission(api example.Example) func(http.ResponseWriter, *http.Request) {
+func HandleHasPermission(api backend.Example) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		b, err := ioutil.ReadAll(r.Body)
 		if err != nil {
@@ -171,7 +171,7 @@ type WhatsTheTimeResponse struct {
 	Bool bool
 }
 
-func HandleWhatsTheTime(api example.Example) func(http.ResponseWriter, *http.Request) {
+func HandleWhatsTheTime(api backend.Example) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		b, err := ioutil.ReadAll(r.Body)
 		if err != nil {

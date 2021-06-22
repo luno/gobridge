@@ -1,10 +1,10 @@
-package example
+package backend
 
 import (
 	"context"
 	"time"
 
-	"gobridge/example/second"
+	"gobridge/example/backend/second"
 )
 
 type Example interface {
