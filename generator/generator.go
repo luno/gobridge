@@ -178,6 +178,12 @@ func Server(serverPath, modName string, d *reader.Data) error {
 								additionalImports = append(additionalImports, imp)
 							}
 						}
+					} else {
+						// Core library support
+						fn.Params[i].GoPackage = val.Name
+						if val.Name != apiImport {
+							additionalImports = append(additionalImports, val.Name)
+						}
 					}
 					params = append(params, val.Name)
 				}

@@ -1,6 +1,8 @@
 package example
 
-import "gobridge/example/second"
+import (
+	"gobridge/example/second"
+)
 
 type User struct {
 	ID   int64

@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	"time"
+	"gobridge/example/second"
 	"gobridge/example"
 )
 
@@ -31,7 +33,8 @@ type Endpoint int
 
 var (
 	HasPermissionEndpoint Endpoint = 0
-	AllEndpoints Endpoint = 1
+	WhatsTheTimeEndpoint Endpoint = 1
+	AllEndpoints Endpoint = 2
 )
 
 func (ep Endpoint) Path() string {
@@ -40,6 +43,8 @@ func (ep Endpoint) Path() string {
 		return "**"
 	case HasPermissionEndpoint:
 		return "/example/haspermission"
+	case WhatsTheTimeEndpoint:
+		return "/example/whatsthetime"
 	default:
 		return ""
 	}
@@ -47,6 +52,7 @@ func (ep Endpoint) Path() string {
 
 func (s *Server) registerHandlers() {
 	http.HandleFunc("/example/haspermission", s.Wrap(HasPermissionEndpoint, HandleHasPermission(s.API)))
+	http.HandleFunc("/example/whatsthetime", s.Wrap(WhatsTheTimeEndpoint, HandleWhatsTheTime(s.API)))
 }
 
 func (s *Server) Wrap(e Endpoint, fn func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
@@ -106,6 +112,7 @@ func checkAuth(w http.ResponseWriter, r *http.Request, authFunc func(token strin
 
 type HasPermissionRequest struct {
 	R []example.Role
+	U example.User
 }
 
 type HasPermissionResponse struct {
@@ -129,7 +136,7 @@ func HandleHasPermission(api example.Example) func(http.ResponseWriter, *http.Re
 			return
 		}
 
-		uqid, err := api.HasPermission(r.Context(), req.R)
+		uqid, err := api.HasPermission(r.Context(), req.R, req.U)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(err.Error()))
@@ -138,6 +145,58 @@ func HandleHasPermission(api example.Example) func(http.ResponseWriter, *http.Re
 
 		var resp HasPermissionResponse
 		resp.Bool, _ = uqid, err
+	
+		respBody, err := json.Marshal(resp)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(err.Error()))
+			return
+		}
+		
+		w.WriteHeader(http.StatusOK)
+		_, err = w.Write(respBody)
+		if err != nil {
+			_, _ = w.Write([]byte(err.Error()))
+			return
+		}
+	}
+}
+
+type WhatsTheTimeRequest struct {
+	Time time.Time
+	Toy second.Toy
+}
+
+type WhatsTheTimeResponse struct {
+	Bool bool
+}
+
+func HandleWhatsTheTime(api example.Example) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		b, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(err.Error()))
+			return
+		}
+
+		var req WhatsTheTimeRequest
+		err = json.Unmarshal(b, &req)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(err.Error()))
+			return
+		}
+
+		epfq, err := api.WhatsTheTime(r.Context(), req.Time, req.Toy)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(err.Error()))
+			return
+		}
+
+		var resp WhatsTheTimeResponse
+		resp.Bool, _ = epfq, err
 	
 		respBody, err := json.Marshal(resp)
 		if err != nil {

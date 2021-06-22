@@ -44,7 +44,6 @@ func ParseFile(path string, mName string) (*Data, error) {
 	}
 
 	for _, filePath := range filesToRead {
-		fmt.Println(filePath)
 		err = readFile(fset, mName, filePath, d, true)
 		if err != nil {
 			return nil, err
