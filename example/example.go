@@ -2,8 +2,9 @@ package example
 
 import (
 	"context"
-	"gobridge/example/second"
 	"time"
+
+	"gobridge/example/second"
 )
 
 type Example interface {
