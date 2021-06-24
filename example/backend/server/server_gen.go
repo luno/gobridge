@@ -2,13 +2,13 @@ package server
 
 import (
 	"encoding/json"
-	"gobridge/example/backend"
 	"io/ioutil"
 	"net/http"
 	"strings"
-
-	"gobridge/example/backend/second"
 	"time"
+
+	"gobridge/example/backend"
+	"gobridge/example/backend/second"
 )
 
 func New(api backend.Example, a AuthConfig) *Server {
@@ -26,15 +26,15 @@ type AuthConfig map[Endpoint]func(token string) (bool, error)
 
 type Server struct {
 	Auth AuthConfig
-	API  backend.Example
+	API backend.Example
 }
 
 type Endpoint int
 
 var (
 	HasPermissionEndpoint Endpoint = 0
-	WhatsTheTimeEndpoint  Endpoint = 1
-	AllEndpoints          Endpoint = 2
+	WhatsTheTimeEndpoint Endpoint = 1
+	AllEndpoints Endpoint = 2
 )
 
 func (ep Endpoint) Path() string {
@@ -42,17 +42,17 @@ func (ep Endpoint) Path() string {
 	case AllEndpoints:
 		return "**"
 	case HasPermissionEndpoint:
-		return "/example/haspermission"
+		return "/backend/haspermission"
 	case WhatsTheTimeEndpoint:
-		return "/example/whatsthetime"
+		return "/backend/whatsthetime"
 	default:
 		return ""
 	}
 }
 
 func (s *Server) registerHandlers() {
-	http.HandleFunc("/example/haspermission", s.Wrap(HasPermissionEndpoint, HandleHasPermission(s.API)))
-	http.HandleFunc("/example/whatsthetime", s.Wrap(WhatsTheTimeEndpoint, HandleWhatsTheTime(s.API)))
+	http.HandleFunc("/backend/haspermission", s.Wrap(HasPermissionEndpoint, HandleHasPermission(s.API)))
+	http.HandleFunc("/backend/whatsthetime", s.Wrap(WhatsTheTimeEndpoint, HandleWhatsTheTime(s.API)))
 }
 
 func (s *Server) Wrap(e Endpoint, fn func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
@@ -163,8 +163,8 @@ func HandleHasPermission(api backend.Example) func(http.ResponseWriter, *http.Re
 }
 
 type WhatsTheTimeRequest struct {
-	Time time.Time
-	Toy  second.Toy
+	Date time.Time
+	Toy second.Toy
 }
 
 type WhatsTheTimeResponse struct {
@@ -188,7 +188,7 @@ func HandleWhatsTheTime(api backend.Example) func(http.ResponseWriter, *http.Req
 			return
 		}
 
-		epfq, err := api.WhatsTheTime(r.Context(), req.Time, req.Toy)
+		epfq, err := api.WhatsTheTime(r.Context(), req.Date, req.Toy)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(err.Error()))

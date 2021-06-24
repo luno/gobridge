@@ -1,7 +1,8 @@
 package second
 
-import "gobridge/example"
+import "time"
 
 type Toy struct {
 	Design string
+	CreatedAt time.Time
 }

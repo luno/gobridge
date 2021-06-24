@@ -32,8 +32,8 @@ export interface HasPermissionResponse {
 }
 
 export interface WhatsTheTimeRequest {
-  Time: Date;
-  Toy: Toy;
+  Date: Date;
+  Toy: second.Toy;
 }
 
 export interface WhatsTheTimeResponse {
@@ -42,10 +42,12 @@ export interface WhatsTheTimeResponse {
 
 export interface Toy {
   Design: string;
+  CreatedAt: Time;
 }
 
 export interface Toy {
   Design: string;
+  CreatedAt: Time;
 }
 
 export interface User {

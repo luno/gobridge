@@ -180,9 +180,19 @@ func Server(serverPath, modName string, d *reader.Data) error {
 						}
 					} else {
 						// Core library support
-						fn.Params[i].GoPackage = val.Name
-						if val.Name != apiImport {
-							additionalImports = append(additionalImports, val.Name)
+						if !isBuiltInType(val.Kind) {
+							pkg := strings.Split(val.Kind, ".")[0]
+							fn.Params[i].GoPackage = pkg
+							fn.Params[i].Kind = strings.Split(val.Kind, ".")[1]
+							if _, exists := pkgToImport[pkg]; !exists {
+								if val.Name != apiImport {
+									additionalImports = append(additionalImports, pkg)
+								}
+							} else if imp, exists := pkgToImport[pkg]; exists {
+								if imp != apiImport {
+									additionalImports = append(additionalImports, imp)
+								}
+							}
 						}
 					}
 					params = append(params, val.Name)
@@ -276,7 +286,7 @@ func switchToTypescriptType(typ string) string {
 		return "string"
 	case "uint", "uint16", "uint32", "uint64", "uint8", "uintptr":
 		return "number"
-	case "Time":
+	case "Time", "time.Time":
 		return "Date"
 	default:
 		// Consider and treat it as a non-primitive type

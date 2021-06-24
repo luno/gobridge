@@ -263,8 +263,8 @@ func (r *Reader) CheckFunctionSignature(fn *ast.FuncType) FunctionSignature {
 
 	for _, param := range fn.Params.List {
 		n, t := r.parseVariables(param)
-		if strings.ToLower(t) == "context" ||
-			strings.ToLower(t) == "error" {
+		if strings.Contains(strings.ToLower(t), "context") ||
+			strings.Contains(strings.ToLower(t), "error") {
 			continue
 		}
 
@@ -287,8 +287,8 @@ func (r *Reader) CheckFunctionSignature(fn *ast.FuncType) FunctionSignature {
 
 	for _, result := range fn.Results.List {
 		n, v := r.parseVariables(result)
-		if strings.ToLower(v) == "context" ||
-			strings.ToLower(v) == "error" {
+		if strings.Contains(strings.ToLower(v), "context") ||
+			strings.Contains(strings.ToLower(v), "error") {
 			continue
 		}
 
@@ -313,7 +313,6 @@ func (r *Reader) CheckFunctionSignature(fn *ast.FuncType) FunctionSignature {
 }
 
 func (r *Reader) parseVariables(field *ast.Field) (name string, importTyp string) {
-	// Unnamed variables
 	if len(field.Names) < 1 {
 		return r.importTypeFromASTExpr(field.Type), r.importTypeFromASTExpr(field.Type)
 	}
@@ -326,7 +325,7 @@ func (r *Reader) importTypeFromASTExpr(expr ast.Expr) string {
 	case *ast.Ident:
 		return importTypeFromASTIdent(s)
 	case *ast.SelectorExpr:
-		return importTypeFromASTIdent(s.Sel)
+		return importTypeFromASTIdent(s.X.(*ast.Ident)) + "." + importTypeFromASTIdent(s.Sel)
 	case *ast.ArrayType:
 		return "[]" + r.importTypeFromASTExpr(s.Elt)
 	case *ast.MapType:
