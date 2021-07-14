@@ -187,10 +187,12 @@ func Server(serverPath, modName string, d *reader.Data) error {
 							if _, exists := pkgToImport[pkg]; !exists {
 								if val.Name != apiImport {
 									additionalImports = append(additionalImports, pkg)
+									pkgToImport[pkg] = pkg
 								}
-							} else if imp, exists := pkgToImport[pkg]; exists {
+							} else if imp, exists := pkgToImport[pkg]; !exists {
 								if imp != apiImport {
 									additionalImports = append(additionalImports, imp)
+									pkgToImport[pkg] = pkg
 								}
 							}
 						}
