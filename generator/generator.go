@@ -45,8 +45,8 @@ func TSClient(tsPath, serviceName string, d *reader.Data) error {
 	}
 
 	tsi := new(templates.TSService)
+	tsi.Name = serviceName
 	for _, methods := range fs {
-		tsi.Name = serviceName
 		for _, m := range methods {
 			tsi.MethodNames = append(tsi.MethodNames, m.Name)
 
