@@ -141,16 +141,7 @@ func (s *Server) Wrap(e Endpoint, fn func(w http.ResponseWriter, r *http.Request
 }
 
 func checkAuth(w http.ResponseWriter, r *http.Request, authFunc func(token string) (bool, error)) (bool, string, int) {
-	ah := r.Header.Get("Authorization")
-	if ah == "" {
-		return false, "unauthorised", http.StatusUnauthorized
-	}
-
-	t := strings.TrimSpace(ah)
-	if t == "" {
-		return false, "no authorization token present", http.StatusUnauthorized
-	}
-
+	t := strings.TrimSpace(r.Header.Get("Authorization"))
 	allow, err := authFunc(t)
 	if err != nil {
 		http.Error(w, "unauthorised", http.StatusUnauthorized)
