@@ -296,6 +296,7 @@ func switchToTypescriptType(typ string) string {
 		// Trade Go slices for TS arrays
 		if strings.HasPrefix(typ, "[]") {
 			typ = strings.TrimPrefix(typ, "[]")
+			typ = switchToTypescriptType(typ)
 			typ += "[]"
 		}
 
@@ -303,6 +304,7 @@ func switchToTypescriptType(typ string) string {
 		if strings.HasPrefix(typ, "map") {
 			typ = "any"
 		}
+
 		return typ
 	}
 }
