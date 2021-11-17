@@ -107,7 +107,11 @@ func readFile(fset *token.FileSet, mName string, filePath string, d *Data, recur
 			if ok {
 				m := make(map[string]string)
 				m[t.Names[0].Name] = t.Values[0].(*ast.BasicLit).Value
-				d.ValueDecl[t.Type.(*ast.Ident).Name] = append(d.ValueDecl[t.Type.(*ast.Ident).Name], m)
+
+				_, isIdent := t.Type.(*ast.Ident)
+				if isIdent {
+					d.ValueDecl[t.Type.(*ast.Ident).Name] = append(d.ValueDecl[t.Type.(*ast.Ident).Name], m)
+				}
 			}
 		case *ast.ImportSpec:
 			if !strings.Contains(t.Path.Value, mName) {
