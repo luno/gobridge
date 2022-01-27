@@ -61,9 +61,10 @@ import (
 {{- end }}
 )
 
-func New(api {{.API}}, a AuthConfig) *Server {
+func New(api {{.API}}, a AuthConfig, basicAuth func(token string) (bool, error)) *Server {
 	s := &Server{
-		Auth: a,
+		AdditionalAuth: a,
+		Basic: basic,
 		API: api,
 	}
 
@@ -75,7 +76,8 @@ func New(api {{.API}}, a AuthConfig) *Server {
 type AuthConfig map[Endpoint]func(token string) (bool, error)
 
 type Server struct {
-	Auth AuthConfig
+	AdditionalAuth AuthConfig
+	Basic          func(token string) (bool, error)
 	API {{.API}}
 }
 
@@ -116,9 +118,15 @@ func (s *Server) Wrap(e Endpoint, fn func(w http.ResponseWriter, r *http.Request
 			w.WriteHeader(http.StatusOK)
 			return
 		}
+
+		allow, msg, reason := checkAuth(w, r, s.Basic)
+		if !allow {
+			http.Error(w, msg, reason)
+			return
+		}
 		
 		// Check to see if the 'AllEndpoints' type was set
-		authFunc, ok := s.Auth[AllEndpoints]
+		authFunc, ok := s.AdditionalAuth[AllEndpoints]
 		if ok {
 			allow, msg, reason := checkAuth(w, r, authFunc)
 			if !allow {
@@ -128,7 +136,7 @@ func (s *Server) Wrap(e Endpoint, fn func(w http.ResponseWriter, r *http.Request
 		} else {
 			// Check to see if there is auth setup for this endpoint as there 
 			// is no config for all the routes.
-			authFunc, ok = s.Auth[e]
+			authFunc, ok = s.AdditionalAuth[e]
 			if ok {
 				allow, msg, reason := checkAuth(w, r, authFunc)
 				if !allow {
