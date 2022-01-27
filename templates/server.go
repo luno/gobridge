@@ -64,7 +64,7 @@ import (
 func New(api {{.API}}, a AuthConfig, basicAuth func(token string) (bool, error)) *Server {
 	s := &Server{
 		AdditionalAuth: a,
-		Basic: basic,
+		Basic: basicAuth,
 		API: api,
 	}
 
