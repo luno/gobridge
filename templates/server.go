@@ -160,7 +160,7 @@ func checkAuth(w http.ResponseWriter, r *http.Request, authFunc func(ctx context
 	}
 
 	if !allow {
-		return false, "", http.StatusUnauthorized
+		return false, "unauthorised", http.StatusUnauthorized
 	}
 
 	return true, "", http.StatusOK
