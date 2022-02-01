@@ -159,7 +159,11 @@ func checkAuth(w http.ResponseWriter, r *http.Request, authFunc func(ctx context
 		return false, "no authorization token present", http.StatusUnauthorized
 	}
 
-	return allow, "", http.StatusOK
+	if !allow {
+		return false, "", http.StatusUnauthorized
+	}
+
+	return true, "", http.StatusOK
 }
 {{ range $key, $value := .Handlers }}
 type {{$value.RequestType}}Request struct {
