@@ -38,7 +38,7 @@ type HTTPHandler struct {
 
 func (s *HTTPServer) AddTo(file *os.File) error {
 	funcMap := template.FuncMap{
-		"ToCamelCase": func(s string) string{
+		"ToCamelCase": func(s string) string {
 			ls := strings.Split(s, "")
 			ls[0] = strings.ToUpper(ls[0])
 			return strings.Join(ls, "")
@@ -205,7 +205,10 @@ func Handle{{$value.Method}}(api {{.API}}) func(http.ResponseWriter, *http.Reque
 			return
 		}
 
-		{{ range $key2, $value2 := $value.Results }}{{if $key2}}, {{end}}{{ $value2 }}{{ end }}{{ if eq (len $value.Results) 1 }} = {{ end }}{{ if not (eq (len $value.Results) 1) }} := {{ end }}api.{{$value.Method}}(r.Context(){{range $key3, $value3 := .Params }}, req.{{ $value3  | ToCamelCase }}{{end }})
+		t := strings.TrimSpace(r.Header.Get("Authorization"))
+		ctx := context.WithValue(r.Context(), "authorization_header", t)
+
+		{{ range $key2, $value2 := $value.Results }}{{if $key2}}, {{end}}{{ $value2 }}{{ end }}{{ if eq (len $value.Results) 1 }} = {{ end }}{{ if not (eq (len $value.Results) 1) }} := {{ end }}api.{{$value.Method}}(ctx{{range $key3, $value3 := .Params }}, req.{{ $value3  | ToCamelCase }}{{end }})
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(err.Error()))
