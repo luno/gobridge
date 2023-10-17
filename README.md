@@ -7,7 +7,7 @@
 
 # Tutorial:
 #### 1. Clone the repo or copy the binary directly from ./bin/
-git clone https://github.com/andrewwormald/gobridge.git
+git clone https://github.com/luno/gobridge.git
 
 #### 2. Build the binary
 ```shell script
