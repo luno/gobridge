@@ -1,3 +1,3 @@
-module github.com/andrewwormald/gobridge
+module github.com/luno/gobridge
 
 go 1.15
