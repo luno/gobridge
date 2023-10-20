@@ -2,9 +2,8 @@ package backend
 
 import (
 	"context"
-	"time"
-
 	"gobridge/example/backend/second"
+	"time"
 )
 
 type Example interface {
