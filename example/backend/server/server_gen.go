@@ -7,14 +7,14 @@ import (
 	"strings"
 	"time"
 
-	"gobridge/example/backend"
-	"gobridge/example/backend/second"
+	"github.com/luno/gobridge/example/backend"
+	"github.com/luno/gobridge/example/backend/second"
 )
 
 func New(api backend.Example, a AuthConfig) *Server {
 	s := &Server{
 		Auth: a,
-		API: api,
+		API:  api,
 	}
 
 	s.registerHandlers()
@@ -26,15 +26,15 @@ type AuthConfig map[Endpoint]func(token string) (bool, error)
 
 type Server struct {
 	Auth AuthConfig
-	API backend.Example
+	API  backend.Example
 }
 
 type Endpoint int
 
 var (
 	HasPermissionEndpoint Endpoint = 0
-	WhatsTheTimeEndpoint Endpoint = 1
-	AllEndpoints Endpoint = 2
+	WhatsTheTimeEndpoint  Endpoint = 1
+	AllEndpoints          Endpoint = 2
 )
 
 func (ep Endpoint) Path() string {
@@ -64,7 +64,7 @@ func (s *Server) Wrap(e Endpoint, fn func(w http.ResponseWriter, r *http.Request
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		
+
 		// Check to see if the 'AllEndpoints' type was set
 		authFunc, ok := s.Auth[AllEndpoints]
 		if ok {
@@ -74,7 +74,7 @@ func (s *Server) Wrap(e Endpoint, fn func(w http.ResponseWriter, r *http.Request
 				return
 			}
 		} else {
-			// Check to see if there is auth setup for this endpoint as there 
+			// Check to see if there is auth setup for this endpoint as there
 			// is no config for all the routes.
 			authFunc, ok = s.Auth[e]
 			if ok {
@@ -145,14 +145,14 @@ func HandleHasPermission(api backend.Example) func(http.ResponseWriter, *http.Re
 
 		var resp HasPermissionResponse
 		resp.Bool, _ = uqid, err
-	
+
 		respBody, err := json.Marshal(resp)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(err.Error()))
 			return
 		}
-		
+
 		w.WriteHeader(http.StatusOK)
 		_, err = w.Write(respBody)
 		if err != nil {
@@ -164,7 +164,7 @@ func HandleHasPermission(api backend.Example) func(http.ResponseWriter, *http.Re
 
 type WhatsTheTimeRequest struct {
 	Date time.Time
-	Toy second.Toy
+	Toy  second.Toy
 }
 
 type WhatsTheTimeResponse struct {
@@ -197,14 +197,14 @@ func HandleWhatsTheTime(api backend.Example) func(http.ResponseWriter, *http.Req
 
 		var resp WhatsTheTimeResponse
 		resp.Bool, _ = epfq, err
-	
+
 		respBody, err := json.Marshal(resp)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(err.Error()))
 			return
 		}
-		
+
 		w.WriteHeader(http.StatusOK)
 		_, err = w.Write(respBody)
 		if err != nil {
@@ -213,4 +213,3 @@ func HandleWhatsTheTime(api backend.Example) func(http.ResponseWriter, *http.Req
 		}
 	}
 }
-
