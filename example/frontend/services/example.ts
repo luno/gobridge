@@ -5,7 +5,7 @@ import { environment } from '../../environments/environment';
 @Injectable({
   providedIn: 'root'
 })
-export class example {
+export class Example {
 
   constructor(private http: HttpClient) {}
 

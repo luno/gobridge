@@ -5,7 +5,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/andrewwormald/gobridge/reader"
+	"github.com/luno/gobridge/reader"
 )
 
 type HTTPServer struct {

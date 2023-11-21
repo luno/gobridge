@@ -1,7 +1,7 @@
 package backend
 
 import (
-	"github.com/andrewwormald/gobridge/example/backend/second"
+	"github.com/luno/gobridge/example/backend/second"
 )
 
 type User struct {

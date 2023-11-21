@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/andrewwormald/gobridge/ioeasy"
-	"github.com/andrewwormald/gobridge/reader"
-	"github.com/andrewwormald/gobridge/templates"
+	"github.com/luno/gobridge/ioeasy"
+	"github.com/luno/gobridge/reader"
+	"github.com/luno/gobridge/templates"
 )
 
 func TSClient(tsPath, serviceName string, d *reader.Data) error {
@@ -318,7 +318,7 @@ func switchToTypescriptType(typ string) string {
 }
 
 func RandVarName() string {
-	var availableChars = []rune("abcdefghijklmnopqrstuvwxyz")
+	availableChars := []rune("abcdefghijklmnopqrstuvwxyz")
 
 	b := make([]rune, 4)
 	for i := range b {

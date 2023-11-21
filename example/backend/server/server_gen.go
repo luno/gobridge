@@ -3,15 +3,15 @@
 package server
 
 import (
+	"time"
 	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"strings"
 
-	"time"
-	"github.com/andrewwormald/gobridge/example/backend"
-	"github.com/andrewwormald/gobridge/example/backend/second"
+	"github.com/luno/gobridge/example/backend"
+	"github.com/luno/gobridge/example/backend/second"
 )
 
 func New(api backend.Example, a AuthConfig, basicAuth func(ctx context.Context, token string) (bool, error)) *Server {

@@ -9,14 +9,9 @@
 #### 1. Clone the repo or copy the binary directly from ./bin/
 git clone https://github.com/luno/gobridge.git
 
-#### 2. Build the binary
+#### 2. Run & have fun!
 ```shell script
-go build -o bin/gobridge main.go
-```
-
-#### 3. Run it with filling out the relevant information in the flags
-```shell script
-./bin/gobridge --api="./example/backend/example.go" --mod="gobridge" --ts="./frontend/services/example.ts" --ts_service="Example" --server="./backend/example/server/server_gen.go"
+go run main.go --api="./example/backend" --mod="github.com/luno/gobridge" --ts="./example/frontend/services/example.ts" --ts_service="Example" --server="./example/backend/server/server_gen.go"
 ```
 
 #### 4. It will take delcarations like this:
