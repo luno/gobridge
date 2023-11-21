@@ -66,8 +66,8 @@ import (
 func New(api {{.API}}, a AuthConfig, basicAuth func(ctx context.Context, token string) (bool, error)) *Server {
 	s := &Server{
 		AdditionalAuth: a,
-		Basic: basicAuth,
-		API: api,
+		Basic:          basicAuth,
+		API:            api,
 	}
 
 	s.registerHandlers()
@@ -80,7 +80,7 @@ type AuthConfig map[Endpoint]func(ctx context.Context, token string) (bool, erro
 type Server struct {
 	AdditionalAuth AuthConfig
 	Basic          func(ctx context.Context, token string) (bool, error)
-	API {{.API}}
+	API            {{.API}}
 }
 
 type Endpoint int
@@ -89,7 +89,7 @@ var (
 {{- range $key, $value := .Paths }}
 	{{$value.Camelcase}}Endpoint Endpoint = {{ $key }}
 {{- end }}
-	AllEndpoints Endpoint = {{(len .Paths)}}
+	AllEndpoints          Endpoint = {{(len .Paths)}}
 )
 
 func (ep Endpoint) Path() string {
@@ -126,7 +126,7 @@ func (s *Server) Wrap(e Endpoint, fn func(w http.ResponseWriter, r *http.Request
 			http.Error(w, msg, reason)
 			return
 		}
-		
+
 		// Check to see if the 'AllEndpoints' type was set
 		authFunc, ok := s.AdditionalAuth[AllEndpoints]
 		if ok {
@@ -136,7 +136,7 @@ func (s *Server) Wrap(e Endpoint, fn func(w http.ResponseWriter, r *http.Request
 				return
 			}
 		} else {
-			// Check to see if there is auth setup for this endpoint as there 
+			// Check to see if there is auth setup for this endpoint as there
 			// is no config for all the routes.
 			authFunc, ok = s.AdditionalAuth[e]
 			if ok {
@@ -218,14 +218,14 @@ func Handle{{$value.Method}}(api {{.API}}) func(http.ResponseWriter, *http.Reque
 
 		var resp {{$value.ResponseType}}Response
 		{{range $key2, $value2 := $value.ResponseParams }}{{if $key2}}, {{end}}{{if eq $value2 "_"}}{{else if $value2}}resp.{{end}}{{$value2  | ToCamelCase }}{{end}} = {{ range $key3, $value3 := .Results }}{{if $key3}}, {{end}}{{ $value3 }}{{ end }}
-	
+
 		respBody, err := json.Marshal(resp)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(err.Error()))
 			return
 		}
-		
+
 		w.WriteHeader(http.StatusOK)
 		_, err = w.Write(respBody)
 		if err != nil {
