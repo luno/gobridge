@@ -3,12 +3,12 @@
 package server
 
 import (
-	"time"
 	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/luno/gobridge/example/backend"
 	"github.com/luno/gobridge/example/backend/second"
@@ -17,8 +17,8 @@ import (
 func New(api backend.Example, a AuthConfig, basicAuth func(ctx context.Context, token string) (bool, error)) *Server {
 	s := &Server{
 		AdditionalAuth: a,
-		Basic: basicAuth,
-		API: api,
+		Basic:          basicAuth,
+		API:            api,
 	}
 
 	s.registerHandlers()
@@ -31,15 +31,15 @@ type AuthConfig map[Endpoint]func(ctx context.Context, token string) (bool, erro
 type Server struct {
 	AdditionalAuth AuthConfig
 	Basic          func(ctx context.Context, token string) (bool, error)
-	API backend.Example
+	API            backend.Example
 }
 
 type Endpoint int
 
 var (
 	HasPermissionEndpoint Endpoint = 0
-	WhatsTheTimeEndpoint Endpoint = 1
-	AllEndpoints Endpoint = 2
+	WhatsTheTimeEndpoint  Endpoint = 1
+	AllEndpoints          Endpoint = 2
 )
 
 func (ep Endpoint) Path() string {
@@ -75,7 +75,7 @@ func (s *Server) Wrap(e Endpoint, fn func(w http.ResponseWriter, r *http.Request
 			http.Error(w, msg, reason)
 			return
 		}
-		
+
 		// Check to see if the 'AllEndpoints' type was set
 		authFunc, ok := s.AdditionalAuth[AllEndpoints]
 		if ok {
@@ -85,7 +85,7 @@ func (s *Server) Wrap(e Endpoint, fn func(w http.ResponseWriter, r *http.Request
 				return
 			}
 		} else {
-			// Check to see if there is auth setup for this endpoint as there 
+			// Check to see if there is auth setup for this endpoint as there
 			// is no config for all the routes.
 			authFunc, ok = s.AdditionalAuth[e]
 			if ok {
@@ -117,8 +117,8 @@ func checkAuth(w http.ResponseWriter, r *http.Request, authFunc func(ctx context
 }
 
 type HasPermissionRequest struct {
-	R []backend.Role
-	U backend.User
+	R               []backend.Role
+	U               backend.User
 	InventoryUpdate map[int64]bool
 }
 
@@ -155,14 +155,14 @@ func HandleHasPermission(api backend.Example) func(http.ResponseWriter, *http.Re
 
 		var resp HasPermissionResponse
 		resp.Bool, _ = uqid, err
-	
+
 		respBody, err := json.Marshal(resp)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(err.Error()))
 			return
 		}
-		
+
 		w.WriteHeader(http.StatusOK)
 		_, err = w.Write(respBody)
 		if err != nil {
@@ -174,7 +174,7 @@ func HandleHasPermission(api backend.Example) func(http.ResponseWriter, *http.Re
 
 type WhatsTheTimeRequest struct {
 	Date time.Time
-	Toy second.Toy
+	Toy  second.Toy
 }
 
 type WhatsTheTimeResponse struct {
@@ -210,14 +210,14 @@ func HandleWhatsTheTime(api backend.Example) func(http.ResponseWriter, *http.Req
 
 		var resp WhatsTheTimeResponse
 		resp.Bool, _ = epfq, err
-	
+
 		respBody, err := json.Marshal(resp)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(err.Error()))
 			return
 		}
-		
+
 		w.WriteHeader(http.StatusOK)
 		_, err = w.Write(respBody)
 		if err != nil {
@@ -226,4 +226,3 @@ func HandleWhatsTheTime(api backend.Example) func(http.ResponseWriter, *http.Req
 		}
 	}
 }
-
