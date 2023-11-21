@@ -305,7 +305,7 @@ func switchToTypescriptType(typ string) string {
 		if strings.HasPrefix(typ, "map") { // map[int64]bool
 			typ = strings.TrimPrefix(typ, "map[") // int64]bool
 
-			keyAndValueTypes := []string{}              // 0 - key, 1 - value of a map
+			var keyAndValueTypes []string               // 0 - key, 1 - value of a map
 			for _, v := range strings.Split(typ, "]") { // [int64, bool]
 				keyAndValueTypes = append(keyAndValueTypes, switchToTypescriptType(v))
 			}
