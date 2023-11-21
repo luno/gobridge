@@ -25,6 +25,7 @@ export class Example {
 export interface HasPermissionRequest {
   R: Role[];
   U: User;
+  InventoryUpdate: Record<number, boolean>;
 }
 
 export interface HasPermissionResponse {
@@ -42,12 +43,12 @@ export interface WhatsTheTimeResponse {
 
 export interface Toy {
   Design: string;
-  CreatedAt: Time;
+  CreatedAt: Date;
 }
 
 export interface Toy {
   Design: string;
-  CreatedAt: Time;
+  CreatedAt: Date;
 }
 
 export interface User {
